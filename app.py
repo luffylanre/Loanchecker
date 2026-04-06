@@ -3,10 +3,10 @@ import pandas as pd
 import joblib
 
 st.set_page_config(page_title="Loan Approval", layout="centered")
-st.title("Loan Approval Prediction")
+st.title(" Loan Approval Prediction")
 st.write("Enter applicant details below.")
 
-# Load the FULL pipeline (this is the simplest and most reliable way)
+# Load the model (the one you already have)
 model = joblib.load('loan_approval_model.pkl')
 
 col1, col2 = st.columns(2)
@@ -26,7 +26,7 @@ with col2:
     loan_term = st.number_input("Loan Term (months)", min_value=12, value=360)
     credit_history = st.selectbox("Credit History (1=good)", [1.0, 0.0])
 
-if st.button("Predict", type="primary"):
+if st.button(" Predict", type="primary"):
     input_df = pd.DataFrame({
         'Gender': [gender],
         'Married': [married],
@@ -49,6 +49,6 @@ if st.button("Predict", type="primary"):
     prob = model.predict_proba(input_df)[0][1]
 
     if pred == 1:
-        st.success(f"**Loan Approved** with {prob:.1%} confidence")
+        st.success(f" **Loan Approved** with {prob:.1%} confidence")
     else:
         st.error(f"**Loan Rejected** (approval probability: {prob:.1%})")
