@@ -1,18 +1,37 @@
 import streamlit as st
 import pandas as pd
 import joblib
-import sklearn
+from sklearn.pipeline import Pipeline
+from sklearn.compose import ColumnTransformer
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
 
 st.set_page_config(page_title="Loan Approval", layout="centered")
 st.title("Loan Approval Prediction")
 st.write("Enter applicant details below.")
-st.caption(f"scikit-learn version: {sklearn.__version__}")
 
-# Load model
+# Rebuild preprocessor (tiny and version-safe)
+numeric_features = ['ApplicantIncome', 'CoapplicantIncome', 'LoanAmount', 
+                    'Loan_Amount_Term', 'Credit_History', 'Total_Income', 
+                    'Income_Per_Person', 'Loan_To_Income_Ratio', 'Loan_Amount_Per_1000']
+categorical_features = ['Gender', 'Married', 'Education', 'Self_Employed', 'Property_Area']
+passthrough_features = ['Dependents']
+
+numeric_transformer = Pipeline(steps=[('imputer', SimpleImputer(strategy='median')), ('scaler', StandardScaler())])
+categorical_transformer = Pipeline(steps=[('imputer', SimpleImputer(strategy='most_frequent')), 
+                                          ('onehot', OneHotEncoder(handle_unknown='ignore', drop='first', sparse_output=False))])
+
+preprocessor = ColumnTransformer(
+    transformers=[('num', numeric_transformer, numeric_features),
+                  ('cat', categorical_transformer, categorical_features),
+                  ('pass', 'passthrough', passthrough_features)],
+    remainder='drop'
+)
+
+# Load only the classifier
 model = joblib.load('loan_approval_model.pkl')
 
 col1, col2 = st.columns(2)
-
 with col1:
     gender = st.selectbox("Gender", ["Male", "Female"])
     married = st.selectbox("Married", ["Yes", "No"])
@@ -30,25 +49,20 @@ with col2:
 
 if st.button("🔍 Predict", type="primary"):
     input_df = pd.DataFrame({
-        'Gender': [gender],
-        'Married': [married],
-        'Dependents': [dependents],
-        'Education': [education],
-        'Self_Employed': [self_employed],
-        'ApplicantIncome': [applicant_income],
-        'CoapplicantIncome': [coapplicant_income],
-        'LoanAmount': [loan_amount],
-        'Loan_Amount_Term': [loan_term],
-        'Credit_History': [credit_history],
-        'Property_Area': [property_area],
+        'Gender': [gender], 'Married': [married], 'Dependents': [dependents],
+        'Education': [education], 'Self_Employed': [self_employed],
+        'ApplicantIncome': [applicant_income], 'CoapplicantIncome': [coapplicant_income],
+        'LoanAmount': [loan_amount], 'Loan_Amount_Term': [loan_term],
+        'Credit_History': [credit_history], 'Property_Area': [property_area],
         'Total_Income': [applicant_income + coapplicant_income],
         'Income_Per_Person': [(applicant_income + coapplicant_income) / (dependents + 1)],
         'Loan_To_Income_Ratio': [loan_amount / (applicant_income + coapplicant_income + 1e-6)],
         'Loan_Amount_Per_1000': [loan_amount / 1000]
     })
 
-    pred = model.predict(input_df)[0]
-    prob = model.predict_proba(input_df)[0][1]
+    X_input = preprocessor.fit_transform(input_df)   # rebuild on the fly
+    pred = model.predict(X_input)[0]
+    prob = model.predict_proba(X_input)[0][1]
 
     if pred == 1:
         st.success(f"**Loan Approved** with {prob:.1%} confidence")
