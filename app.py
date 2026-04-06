@@ -1,10 +1,12 @@
 import streamlit as st
 import pandas as pd
 import joblib
+import sklearn
 
 st.set_page_config(page_title="Loan Approval", layout="centered")
-st.title("🏦 Loan Approval Prediction")
+st.title("Loan Approval Prediction")
 st.write("Enter applicant details below.")
+st.caption(f"scikit-learn version: {sklearn.__version__}")
 
 # Load model
 model = joblib.load('loan_approval_model.pkl')
@@ -49,6 +51,6 @@ if st.button("🔍 Predict", type="primary"):
     prob = model.predict_proba(input_df)[0][1]
 
     if pred == 1:
-        st.success(f"✅ **Loan Approved** with {prob:.1%} confidence")
+        st.success(f"**Loan Approved** with {prob:.1%} confidence")
     else:
-        st.error(f"❌ **Loan Rejected** (approval probability: {prob:.1%})")
+        st.error(f"**Loan Rejected** (approval probability: {prob:.1%})")
