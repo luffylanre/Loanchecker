@@ -1,13 +1,35 @@
 import streamlit as st
 import pandas as pd
 import joblib
+from sklearn.pipeline import Pipeline
+from sklearn.compose import ColumnTransformer
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
 
 st.set_page_config(page_title="Loan Approval", layout="centered")
 st.title("Loan Approval Prediction")
 st.write("Enter applicant details below.")
 
-# Load the FULL pipeline model
+# Load only the classifier (tiny & safe)
 model = joblib.load('loan_approval_model.pkl')
+
+# Rebuild the exact same preprocessor here (this fixes the feature mismatch)
+numeric_features = ['ApplicantIncome', 'CoapplicantIncome', 'LoanAmount', 'Loan_Amount_Term',
+                    'Credit_History', 'Total_Income', 'Income_Per_Person', 
+                    'Loan_To_Income_Ratio', 'Loan_Amount_Per_1000']
+categorical_features = ['Gender', 'Married', 'Education', 'Self_Employed', 'Property_Area']
+passthrough_features = ['Dependents']
+
+preprocessor = ColumnTransformer(
+    transformers=[
+        ('num', Pipeline([('imputer', SimpleImputer(strategy='median')), 
+                         ('scaler', StandardScaler())]), numeric_features),
+        ('cat', Pipeline([('imputer', SimpleImputer(strategy='most_frequent')),
+                         ('onehot', OneHotEncoder(handle_unknown='ignore', drop='first', sparse_output=False))]), categorical_features),
+        ('pass', 'passthrough', passthrough_features)
+    ],
+    remainder='drop'
+)
 
 col1, col2 = st.columns(2)
 
@@ -45,8 +67,11 @@ if st.button("Predict", type="primary"):
         'Loan_Amount_Per_1000': [loan_amount / 1000]
     })
 
-    pred = model.predict(input_df)[0]
-    prob = model.predict_proba(input_df)[0][1]
+    # Transform input using the same preprocessor
+    X_input = preprocessor.fit_transform(input_df)
+    
+    pred = model.predict(X_input)[0]
+    prob = model.predict_proba(X_input)[0][1]
 
     if pred == 1:
         st.success(f"**Loan Approved** with {prob:.1%} confidence")
